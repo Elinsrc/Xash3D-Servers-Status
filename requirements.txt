@@ -1,0 +1,4 @@
+aiohttp
+aiofiles
+asyncio-dgram
+pydantic

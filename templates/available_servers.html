@@ -1,0 +1,18 @@
+<html>
+<head>
+    <title>Available Servers</title>
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
+</head>
+<body>
+    <h1>Available Servers</h1>
+    <div class="server-list-container">
+        <ul>
+            {{ server_info|safe }}
+        </ul>
+    </div>
+    <div class="button-container">
+        <button onclick="window.location.href='/'">Go to Main Page</button>
+        <button onclick="window.location.reload();">Refresh Page</button>
+    </div>
+</body>
+</html>

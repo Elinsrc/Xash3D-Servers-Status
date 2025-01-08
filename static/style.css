@@ -1,0 +1,63 @@
+body {
+    background-color: #1c3147;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+h1 {
+    text-align: center;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+input[type="text"], input[type="submit"], button {
+    padding: 10px;
+    margin: 10px;
+    border: none;
+    border-radius: 15px;
+    width: 300px;
+}
+
+input[type="submit"], button {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+input[type="submit"]:hover, button:hover {
+    background-color: #0056b3;
+}
+
+.server-info, .player-list {
+    background-color: #2a2e35;
+    padding: 15px;
+    border-radius: 15px;
+    margin: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+strong {
+    color: #00FF00;
+}
+
+.not-found {
+    text-align: center;
+    color: yellow;
+}
+
+.button-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.server-list-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 5px;
+}
