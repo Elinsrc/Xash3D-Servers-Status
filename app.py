@@ -9,6 +9,7 @@ import argparse
 from pydantic import BaseModel
 from typing import Union, List
 from aiohttp import web
+import random
 
 class Address(BaseModel):
     addr: str
@@ -35,9 +36,9 @@ def unpack_string(data: bytes):
     return data.split(b'\x00', 1)
 
 ms_list = [
-    Address(**{"addr": "ms.xash.su", "port": 27010}),
-    Address(**{"addr": "ms2.xash.su", "port": 27010}),
-    Address(**{"addr": "ms.mentality.rip", "port": 27010})
+    Address(**{"addr": "mentality.rip", "port": 27010}),
+    Address(**{"addr": "mentality.rip", "port": 27011}),
+    Address(**{"addr": "ms2.mentality.rip", "port": 27010})
     ]
 
 async def send_packet(ip, port, msg, timeout: float) -> Union[bytes, None]:
@@ -54,6 +55,7 @@ async def send_packet(ip, port, msg, timeout: float) -> Union[bytes, None]:
 
 async def get_servers(gamedir:str, nat:bool, ms:Address, timeout:float) -> list[Address]:
     servers = []
+    key = random.randint(0, 0xFFFFFFFF)
     QUERY = b'1\xff0.0.0.0:0\x00\\nat\\%b\\gamedir\\%b\\clver\\0.21\x00' % (str(nat).encode(), gamedir.encode())
 
     data = await send_packet(ms.addr, ms.port, QUERY, timeout)
@@ -70,111 +72,62 @@ async def get_servers(gamedir:str, nat:bool, ms:Address, timeout:float) -> list[
     return servers
 
 async def query_servers(target: Address, serverdict, timeout: float) -> None:
-    QUERY_SERVER = b'\xff\xff\xff\xffTSource'
-    raw = await send_packet(target.addr, target.port, QUERY_SERVER, timeout)
+    queries = {
+        48: b'\xff\xff\xff\xffinfo 48',
+        49: b'\xff\xff\xff\xffinfo 49'
+    }
 
-    if not raw:
-        return  # Server didn't reply.
+    protocol = None
+    raw = None
 
-    result = {}
-    connless_marker, raw = unpack_long(raw)
-    if not connless_marker == -1:
-        return  # raise Exception("Invalid connectionless packet marker!")
+    for prot, query in queries.items():
+        raw = await send_packet(target.addr, target.port, query, timeout)
 
-    engine_type, raw = unpack_byte(raw)
-    try:
-        if chr(engine_type) == 'I':  # Source format (<= 0.19.x)
-            result['protocol_ver'], raw = unpack_byte(raw)
-            result['hostname'], raw = unpack_string(raw)
-            result['map'], raw = unpack_string(raw)
-            result['gamedir'], raw = unpack_string(raw)
-            result['gamedesc'], raw = unpack_string(raw)
-            result['appid'], raw = unpack_short(raw)
-            result['numplayers'], raw = unpack_byte(raw)
-            result['maxplayers'], raw = unpack_byte(raw)
-            result['numbots'], raw = unpack_byte(raw)
-            result['dedicated'], raw = unpack_byte(raw)
-            result['os'], raw = unpack_byte(raw)
-            result['passworded'], raw = unpack_byte(raw)
-            result['secure'], raw = unpack_byte(raw)
-            result['os'] = chr(result['os'])
-            if result['os'].lower() == 'l':
-                os = "Linux"
-            elif result['os'].lower() == 'w':
-                os = "Windows"
-            elif result['os'].lower() == 'm':
-                os = "Mac OS"
-            else:
-                os = "Unknown OS"
+        if raw is None or (b'wrong version' in raw and prot == 48):
+            continue
 
-        elif chr(engine_type) == 'm':  # GoldSource format (≥ 0.20.x)
-            result['address'], raw = unpack_string(raw)
-            result['hostname'], raw = unpack_string(raw)
-            result['map'], raw = unpack_string(raw)
-            result['gamedir'], raw = unpack_string(raw)
-            result['gamedesc'], raw = unpack_string(raw)
-            result['numplayers'], raw = unpack_byte(raw)
-            result['maxplayers'], raw = unpack_byte(raw)
-            result['protocol_ver'], raw = unpack_byte(raw)
-            result['servertype'], raw = unpack_byte(raw)
-            result['os'], raw = unpack_byte(raw)
-            result['is_mod'], raw = unpack_byte(raw)
-            if result['is_mod'] == 1:
-                result['game_url'], raw = unpack_string(raw)
-                result['update_url'], raw = unpack_string(raw)
-                result['null'], raw = unpack_byte(raw)
-                result['mod_ver'], raw = unpack_long(raw)
-                result['mod_size'], raw = unpack_long(raw)
-                result['mod_type'], raw = unpack_byte(raw)
-                result['dll_type'], raw = unpack_byte(raw)
-            result['secure'], raw = unpack_byte(raw)
-            result['bots'], raw = unpack_byte(raw)
-            result['os'] = chr(result['os'])
-            result['servertype'] = chr(result['servertype'])
-            if result['os'].lower() == 'l':
-                os = "Linux"
-            elif result['os'].lower() == 'w':
-                os = "Windows"
-            elif result['os'].lower() == 'm':
-                os = "Mac OS"
-            else:
-                os = "Unknown OS"
+        protocol = prot
+        break
 
-        else:
-            return  # raise Exception("Invalid engine type!")
+    if raw is None:
+        return
 
-        players_list = await get_players(target, timeout, result['protocol_ver'])
+    raw_str = raw.decode('utf-8', errors='ignore')
+    sections = raw_str.split('\\')
+    server_info = {sections[i]: sections[i + 1] for i in range(1, len(sections) - 1, 2)}
 
-        server = {
-            "addr": f"{target.addr}",
-            "port": target.port,
-            "hostname": result['hostname'].decode('utf-8', errors='replace'),
-            "map": f"{result['map'].decode('utf-8')}",
-            "players": result['numplayers'],
-            "maxplayers": result['maxplayers'],
-            "gamedir": f"{result['gamedir'].decode('utf-8')}",
-            "gamedesc": f"{result['gamedesc'].decode('utf-8')}",
-            "os": os,
-            "protocol_ver": result['protocol_ver'],
-            "players_list": players_list
-        }
 
-        if chr(engine_type) == 'I':
-            server["bots"] = str(result['numbots'])
-        else:
-            server["bots"] = str(result['bots'])
+    for key in ["numcl", "maxcl", "dm", "team", "coop", "password"]:
+        server_info[key] = int(server_info.get(key, 0))
 
-        serverdict["servers"].append(server.copy())
+    players_list = await get_players(target, timeout, protocol)
 
-    except Exception:
-        traceback.print_exc()
-        pass
+    server = {
+        "addr": f"{target.addr}",
+        "port": target.port,
+        "host": server_info.get("host"),
+        "map": server_info.get("map"),
+        "numcl": server_info["numcl"],
+        "maxcl": server_info["maxcl"],
+        "gamedir": server_info.get("gamedir"),
+        "dm": server_info["dm"],
+        "team": server_info["team"],
+        "coop": server_info["coop"],
+        "password": server_info["password"],
+        "protocol_ver": protocol,
+        "players_list": players_list
+    }
+
+    serverdict["servers"].append(server.copy())
 
 # Not Used
 def remove_color_tags(text):
     return re.sub(r'\^\d', '', text)
 
 def draw_with_color_code(text):
+    if text is None:
+        return "None"
+
     color_code = {
         "^0": "color: #000000;",  # Black
         "^1": "color: #FF0000;",  # Red
@@ -292,8 +245,8 @@ async def get_servers_status(request):
         for i in servers['servers']:
             server_info_html += f"""
             <div class="server-info">
-                <strong>Server:</strong> {draw_with_color_code(i['hostname'])}<br>
-                <strong>Map:</strong> {i['map']} ({i['players']}/{i['maxplayers']})<br>
+                <strong>Server:</strong> {draw_with_color_code(i['host'])}<br>
+                <strong>Map:</strong> {i['map']} ({i['numcl']}/{i['maxcl']})<br>
             """
             if i['players_list']:
                 player_entries = []
@@ -306,13 +259,10 @@ async def get_servers_status(request):
                     <strong># Name [kills] (Time)</strong><br>
                     {"<br>".join(player_entries)}<br>
                 </div>
-                <strong>Bots:</strong> {i['bots']}<br>
                 """
             server_info_html += f"""
-                <strong>Description:</strong> {i['gamedesc']}<br>
                 <strong>IP:</strong> {i['addr']}:{i['port']}<br>
-                <strong>Protocol:</strong> {i['protocol_ver']}, Xash3D FWGS {0.21 if i['protocol_ver'] == 49 else 0.19}.*<br>
-                <strong>OS:</strong> {i['os']}<br>
+                <strong>Protocol:</strong> {i['protocol_ver']}, Xash3D FWGS {0.21 if i['protocol_ver'] == 49 else 0.19}<br>
             </div>
             """
 
