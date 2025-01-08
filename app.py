@@ -9,7 +9,6 @@ import argparse
 from pydantic import BaseModel
 from typing import Union, List
 from aiohttp import web
-import random
 
 class Address(BaseModel):
     addr: str
@@ -55,7 +54,6 @@ async def send_packet(ip, port, msg, timeout: float) -> Union[bytes, None]:
 
 async def get_servers(gamedir:str, nat:bool, ms:Address, timeout:float) -> list[Address]:
     servers = []
-    key = random.randint(0, 0xFFFFFFFF)
     QUERY = b'1\xff0.0.0.0:0\x00\\nat\\%b\\gamedir\\%b\\clver\\0.21\x00' % (str(nat).encode(), gamedir.encode())
 
     data = await send_packet(ms.addr, ms.port, QUERY, timeout)
@@ -119,10 +117,6 @@ async def query_servers(target: Address, serverdict, timeout: float) -> None:
     }
 
     serverdict["servers"].append(server.copy())
-
-# Not Used
-def remove_color_tags(text):
-    return re.sub(r'\^\d', '', text)
 
 def draw_with_color_code(text):
     if text is None:
