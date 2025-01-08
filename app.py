@@ -16,24 +16,6 @@ class Address(BaseModel):
     def __str__(self) -> str:
         return f"{self.addr}:{self.port}"
 
-def unpack_byte(data: bytes):
-    return struct.unpack('<B', data[:1])[0], data[1:]
-
-def unpack_short(data: bytes):
-    return struct.unpack('<h', data[:2])[0], data[2:]
-
-def unpack_long(data: bytes):
-    return struct.unpack('<l', data[:4])[0], data[4:]
-
-def unpack_longlong(data: bytes):
-    return struct.unpack('<Q', data[:8])[0], data[8:]
-
-def unpack_float(data: bytes):
-    return struct.unpack('<f', data[:4])[0], data[4:]
-
-def unpack_string(data: bytes):
-    return data.split(b'\x00', 1)
-
 ms_list = [
     Address(**{"addr": "mentality.rip", "port": 27010}),
     Address(**{"addr": "mentality.rip", "port": 27011}),
