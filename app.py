@@ -76,10 +76,6 @@ async def query_servers(target: Address, serverdict, timeout: float) -> None:
     sections = raw_str.split('\\')
     server_info = {sections[i]: sections[i + 1] for i in range(1, len(sections) - 1, 2)}
 
-
-    for key in ["numcl", "maxcl", "dm", "team", "coop", "password"]:
-        server_info[key] = int(server_info.get(key, 0))
-
     players_list = await get_players(target, timeout, protocol)
 
     server = {
@@ -87,13 +83,13 @@ async def query_servers(target: Address, serverdict, timeout: float) -> None:
         "port": target.port,
         "host": server_info.get("host"),
         "map": server_info.get("map"),
-        "numcl": server_info["numcl"],
-        "maxcl": server_info["maxcl"],
+        "numcl": server_info.get("numcl"),
+        "maxcl": server_info.get("maxcl"),
         "gamedir": server_info.get("gamedir"),
-        "dm": server_info["dm"],
-        "team": server_info["team"],
-        "coop": server_info["coop"],
-        "password": server_info["password"],
+        "dm": server_info.get("dm"),
+        "team": server_info.get("team"),
+        "coop": server_info.get("coop"),
+        "password": server_info.get("password"),
         "protocol_ver": protocol,
         "players_list": players_list
     }
@@ -102,7 +98,7 @@ async def query_servers(target: Address, serverdict, timeout: float) -> None:
 
 def draw_with_color_code(text):
     if text is None:
-        return "None"
+        return
 
     color_code = {
         "^0": "color: #000000;",  # Black
@@ -219,6 +215,9 @@ async def get_servers_status(request):
 
         server_info_html = ""
         for i in servers['servers']:
+            if i['host'] is None:
+                continue
+
             server_info_html += f"""
             <div class="server-info">
                 <strong>Server:</strong> {draw_with_color_code(i['host'])}<br>
@@ -268,6 +267,6 @@ app.router.add_get('/api/', get_servers_api)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run the web server.')
-    parser.add_argument('-port', type=int, default=27100, help='Port to run the web server on (default: 27100)')
+    parser.add_argument('--port', type=int, default=27100, help='Port to run the web server on (default: 27100)')
     args = parser.parse_args()
     web.run_app(app, port=args.port)
