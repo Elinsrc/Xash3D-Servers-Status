@@ -158,8 +158,11 @@ async def get_players(target: Address, timeout: float, protocol: int) -> dict:
 
     data = data[16:]
     data = data.decode(errors='replace')
-    data = "\\" + data.replace("'", ' ').replace('"', ' ').replace("'", ' ')
+    data = "\\" + data.replace("'", ' ').replace('\n', '')
     data = data.split("\\")[1:]
+
+    if data[-1] == '':
+        data = data[:-1]
 
     players_list = {}
 
