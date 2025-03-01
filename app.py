@@ -36,7 +36,7 @@ async def send_packet(ip, port, msg, timeout: float) -> Union[bytes, None]:
 
 async def get_servers(gamedir:str, nat:bool, ms:Address, timeout:float) -> list[Address]:
     servers = []
-    QUERY = b'1\xff0.0.0.0:0\x00\\nat\\%b\\gamedir\\%b\\clver\\0.21\x00' % (str(nat).encode(), gamedir.encode())
+    QUERY = b'1\xff0.0.0.0:0\x00\\nat\\%b\\gamedir\\%b\\clver\\0.21\\buildnum\\0000\x00' % (str(nat).encode(), gamedir.encode())
 
     data = await send_packet(ms.addr, ms.port, QUERY, timeout)
 
